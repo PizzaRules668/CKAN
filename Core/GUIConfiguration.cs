@@ -3,7 +3,9 @@ using System.Drawing;
 using System.IO;
 using System.Xml.Serialization;
 
-namespace CKAN.GUI
+using CKAN.Games;
+
+namespace CKAN
 {
     [XmlRootAttribute("Configuration")]
     public class GUIConfiguration
@@ -111,7 +113,7 @@ namespace CKAN.GUI
                 var configuration = new GUIConfiguration
                 {
                     path = path,
-                    CommandLineArguments = Main.Instance.CurrentInstance.game.DefaultCommandLine
+                    CommandLineArguments = new GameInstanceManager(new NullUser()).CurrentInstance.game.DefaultCommandLine
                 };
 
                 SaveConfiguration(configuration);
@@ -151,7 +153,7 @@ namespace CKAN.GUI
 
                     var fi = new FileInfo(path);
                     string message = string.Format(
-                        Properties.Resources.ConfigurationParseError,
+                        "Error trying to parse \"{0}\"{1} Try to move {2} out of {3} and restart CKAN.",
                         fi.FullName, additionalErrorData, fi.Name, fi.DirectoryName);
                     throw new Kraken(message);
                 }

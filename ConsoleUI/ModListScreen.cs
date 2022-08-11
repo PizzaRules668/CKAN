@@ -158,6 +158,12 @@ namespace CKAN.ConsoleUI {
                 return true;
             });
 
+            moduleList.AddTip(Properties.Resources.F2, Properties.Resources.LaunchKSP);
+            moduleList.AddBinding(Keys.F2, (object sender, ConsoleTheme theme) => {
+                manager.CurrentInstance.LaunchGame(this, launchAnyWay);
+                return true;
+            });
+
             moduleList.AddTip(Properties.Resources.Enter, Properties.Resources.Details,
                 () => moduleList.Selection != null
             );
@@ -662,6 +668,21 @@ namespace CKAN.ConsoleUI {
                     : im.Module.download_size;
             }
             return total;
+        }
+
+        /// <summary>
+        /// Asks the user is they want to continue with launching the game.
+        /// </summary>
+        public Tuple<bool, bool> launchAnyWay(string text, string suppressText)
+        {
+            int result = RaiseSelectionDialog(text, "Cancel", "Launch", "Launch and Don't Ask Again");
+            if (result == 0) {
+                return new Tuple<bool, bool>(false, false);
+            } else if (result == 2) {
+                return new Tuple<bool, bool>(true, true);
+            } else {
+                return new Tuple<bool, bool>(true, false);
+            }
         }
 
         private GameInstanceManager manager;

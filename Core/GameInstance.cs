@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Diagnostics;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Transactions;
@@ -31,6 +32,8 @@ namespace CKAN
         private List<GameVersion> _compatibleVersions = new List<GameVersion>();
 
         public TimeLog playTime;
+
+        public GUIConfiguration configuration;
 
         public string Name { get; set; }
         /// <summary>
@@ -72,6 +75,7 @@ namespace CKAN
             {
                 SetupCkanDirectories(scan);
                 LoadCompatibleVersions();
+                configuration = GUIConfiguration.LoadOrCreateConfiguration(Path.Combine(CkanDir(), "GUIConfig.xml"));
             }
         }
 
@@ -357,6 +361,74 @@ namespace CKAN
         public GameVersionCriteria VersionCriteria()
         {
             return new GameVersionCriteria(Version(), _compatibleVersions);
+        }
+
+        public void LaunchGame(IUser user, Func<string, string, Tuple<bool, bool>> launchAnyWay)
+        {
+            string[] arguments = configuration.CommandLineArguments.Split(' ');
+
+            var registry = RegistryManager.Instance(this).registry;
+
+            var suppressedIdentifiers = this.GetSuppressedCompatWarningIdentifiers;
+            var incomp = registry.IncompatibleInstalled(this.VersionCriteria())
+                .Where(m => !m.Module.IsDLC && !suppressedIdentifiers.Contains(m.identifier))
+                .ToList();
+            if (incomp.Any())
+            {
+                // Warn that it might not be safe to run Game with incompatible modules installed
+                string incompatDescrip = incomp
+                    .Select(m => $"{m.Module} ({registry.CompatibleGameVersions(this.game, m.Module)})")
+                    .Aggregate((a, b) => $"{a}{Environment.NewLine}{b}");
+                var ver = this.Version();
+                
+                // Need to internationalize this
+                var result = launchAnyWay(
+                    string.Format("Some installed modules are incompatible! It might not be safe to launch the game. Really launch?\n\n{0}", incompatDescrip),
+                    string.Format("Don't show this again for these mods on {0} {1}",
+                        this.game.ShortName,
+                        new GameVersion(ver.Major, ver.Minor, ver.Patch))
+                );
+                
+                if (!result.Item1)
+                {
+                    return;
+                }
+                else if (result.Item2)
+                {
+                    this.AddSuppressedCompatWarningIdentifiers(
+                        incomp.Select(m => m.identifier).ToHashSet()
+                    );
+                }
+            }
+
+            arguments = this.game.AdjustCommandLine(arguments, this.Version());
+            var binary = arguments[0];
+            var args = string.Join(" ", arguments.Skip(1));
+
+            try
+            {
+                Directory.SetCurrentDirectory(this.GameDir());
+
+                Process p = new Process()
+                {
+                    StartInfo = new ProcessStartInfo()
+                    {
+                        FileName = binary,
+                        Arguments = args
+                    },
+                    EnableRaisingEvents = true
+                };
+
+                p.Exited += (sender, e) => this.playTime.Stop(this.CkanDir());
+
+                p.Start();
+                this.playTime.Start();
+            }
+            catch (Exception exception)
+            {
+                // Need to internationalize this.
+                user.RaiseError("Couldn't start game. \n\n {0}", exception.Message);
+            }
         }
 
         #endregion

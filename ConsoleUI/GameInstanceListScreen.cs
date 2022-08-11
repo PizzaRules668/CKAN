@@ -48,6 +48,10 @@ namespace CKAN.ConsoleUI {
                         Renderer = k => k.Version()?.ToString() ?? Properties.Resources.InstanceListNoVersion,
                         Comparer = (a, b) => a.Version()?.CompareTo(b.Version() ?? GameVersion.Any) ?? 1
                     }, new ConsoleListBoxColumn<GameInstance>() {
+                        Header   = Properties.Resources.InstancePlayTimeHeader,
+                        Width    = 9,
+                        Renderer = k => k.playTime.ToString() ?? ""
+                    }, new ConsoleListBoxColumn<GameInstance>() {
                         Header   = Properties.Resources.InstanceListPathHeader,
                         Width    = 70,
                         Renderer = k => k.GameDir()
